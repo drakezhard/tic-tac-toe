@@ -1,9 +1,11 @@
-/* * { margin: 0; padding: 0;}*/
+* { margin: 0; padding: 0;}
 
 body, html, .container{
     width:100%;
-    height:100%;}
+    height:100%;
+    margin: 0;
+    padding: 0;
+    background-color: mediumturquoise;}
 
-.board {align:center;}
-
-.winner {background-color: lightblue;}
+.winner {color: orangered;}
+         

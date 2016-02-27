@@ -1,0 +1,12 @@
+
+{
+:active-player {:idx 2},
+
+:players [[:player/by-index 1] [:player/by-index 2]], 
+:board [[:tile/by-index [0 0]] [:tile/by-index [1 0]] [:tile/by-index [2 0]] [:tile/by-index [0 1]] [:tile/by-index [1 1]] [:tile/by-index [2 1]] [:tile/by-index [0 2]] [:tile/by-index [1 2]] [:tile/by-index [2 2]]], 
+
+:player/by-index 
+{1 {:idx 1, :name "player1", :type :computer, :active? false, :winner nil, :piece "black"}, 
+2 {:idx 2, :name "player2", :type :human, :active? true, :winner nil, :piece "white"}}, 
+
+:tile/by-index {[0 1] {:index [0 1], :value nil}, [1 2] {:index [1 2], :value nil}, [0 0] {:index [0 0], :value nil}, [2 2] {:index [2 2], :value nil}, [0 2] {:index [0 2], :value nil}, [1 1] {:index [1 1], :value "black"}, [2 1] {:index [2 1], :value nil}, [1 0] {:index [1 0], :value nil}, [2 0] {:index [2 0], :value nil}}}

@@ -7,37 +7,40 @@
 
 (enable-console-print!)
 
-(def app-state {:active-player {:idx 1}
+(def app-state {:active-player {:idx nil}
                 :players [{:idx 1
-                           :name "player1"
-                           :type :computer
-                           :active? true
+                           :name "Player 1"
+                           :type :human
+                           :active? nil
                            :winner nil
                            :piece "black"}
                           {:idx 2
-                           :name "player2"
-                           :type :human
-                           :active? false
+                           :name "Player 2"
+                           :type :computer
+                           :active? nil
                            :winner nil
                            :piece "white"}]
-                :board [{:index [0 0] :value nil}
-                        {:index [1 0] :value nil}
-                        {:index [2 0] :value nil}
-
-                        {:index [0 1] :value nil}
-                        {:index [1 1] :value nil}
-                        {:index [2 1] :value nil}
-
-                        {:index [0 2] :value nil}
-                        {:index [1 2] :value nil}
-                        {:index [2 2] :value nil}]})
+                :board [{:index [0 0] :value nil} {:index [1 0] :value nil} {:index [2 0] :value nil}
+                        {:index [0 1] :value nil} {:index [1 1] :value nil} {:index [2 1] :value nil}
+                        {:index [0 2] :value nil} {:index [1 2] :value nil} {:index [2 2] :value nil}]})
 
 (defn getter [state key]
   (let [st @state]
     (into [] (map #(get-in st %)) (get st key))))
 
-(defn read [{:keys [state] :as env} key params]
+(defmulti read om/dispatch)
+
+(defmethod read :players
+  [{:keys [state] :as env} key params]
   {:value (getter state key)})
+
+(defmethod read :board
+  [{:keys [state] :as env} key params]
+  {:value (getter state key)})
+
+(defmethod read :active-player
+  [{:keys [state] :as env} key params]
+  {:value (key @state)})
 
 (defmulti mutate om/dispatch)
 
@@ -53,17 +56,17 @@
         d (tile-map [0 1]) e (tile-map [1 1]) f (tile-map [2 1])
         g (tile-map [0 2]) h (tile-map [1 2]) i (tile-map [2 2])]
     (cond
-      (compare-3 a b c) [[0 0] [2 0] a]
-      (compare-3 d e f) [[0 1] [2 1] d]
-      (compare-3 g h i) [[0 2] [2 2] g]
-      (compare-3 a d g) [[0 0] [0 2] a]
-      (compare-3 b e h) [[1 0] [1 2] b]
-      (compare-3 c f i) [[2 0] [2 2] c]
-      (compare-3 a e i) [[0 0] [2 2] a]
-      (compare-3 g e c) [[0 2] [2 0] g]
+      (compare-3 a b c) [[0 0] [1 0] [2 0] a]
+      (compare-3 d e f) [[0 1] [1 1] [2 1] d]
+      (compare-3 g h i) [[0 2] [1 2] [2 2] g]
+      (compare-3 a d g) [[0 0] [0 1] [0 2] a]
+      (compare-3 b e h) [[1 0] [1 1] [1 2] b]
+      (compare-3 c f i) [[2 0] [2 1] [2 2] c]
+      (compare-3 a e i) [[0 0] [1 1] [2 2] a]
+      (compare-3 g e c) [[0 2] [1 1] [2 0] g]
       :else false)))
 
-(defn next-player [state]
+(defn next-player [state active]
   (do (swap! state update-in
              [:active-player :idx]
              {1 2
@@ -75,81 +78,158 @@
              [:player/by-index 2 :active?]
              not)))
 
+(defn stop [state active winner]
+  (do
+    (if (keyword? winner)
+      (do (swap! state update-in
+                 [:player/by-index 1 :winner]
+                 (fn []
+                   winner))
+          (swap! state update-in
+                 [:player/by-index 2 :winner]
+                 (fn []
+                   winner)))
+      (swap! state update-in
+             [:player/by-index active :winner]
+             (fn []
+               winner)))
+    (swap! state update-in
+           [:active-player :idx]
+           (fn [] nil))
+    (swap! state update-in
+           [:player/by-index active :active?]
+           not)))
+
+(defn get-board [state]
+  (vals (get @state :tile/by-index)))
+
+(defn full? [board]
+  (->> board
+       (map :value)
+       (every? (complement nil?))))
+
+(defn next-move [state active move]
+  (swap! state update-in
+         [:tile/by-index move :value]
+         (fn []
+           (get-in @state
+                   [:player/by-index active :piece]))))
+
+(defn next-state [state active]
+  (let [board (get-board state)
+        winner (won? board)]
+    (if winner
+      (stop state active winner)
+      (if (full? board)
+        (stop state active :tie)
+        (next-player state active)))))
+
 (defmethod mutate 'tic-tac-toe/play
   [{:keys [state]} _ {:keys [index]}]
   {:action
    (fn []
-     (let [active (get-in @state [:active-player :idx])]
-       (swap! state update-in
-              [:tile/by-index index :value]
-              (fn []
-                (get-in @state
-                        [:player/by-index active :piece])))
-       (let [board (vals (get @state :tile/by-index))
-             winner (won? board)]
-         (if-not winner
-           (next-player state)
-           (do
-             (swap! state update-in
-                    [:player/by-index active :winner]
-                    (fn []
-                      winner))
-             (swap! state update-in
-                    [:active-player :idx]
-                    (fn [] nil)))))))})
+     (when-let [active (get-in @state [:active-player :idx])]
+       (next-move state active index)
+       (next-state state active)))})
 
 (def corners #{[0 0] [2 0] [0 2] [2 2]})
 (def edges #{[1 0] [0 1] [1 2] [2 1]})
+(def corner-endpoint {[0 0] [2 2]
+                      [0 2] [2 0]
+                      [2 2] [0 0]
+                      [2 0] [0 2]})
 
-(defn next-move [invalid-moves valid-moves]
+(defn invalid-valid [board]
+  ((juxt remove filter)
+   (fn [{:keys [index value]}] (nil? value)) board))
+
+(defn generate-moves [board color]
+  (let [[_ valid](invalid-valid board)]
+    (->> valid
+        (map (fn [m]
+               (conj (remove #(= % m) board) (update m :value (fn [] color))))))))
+
+(def opposite-player {1 2
+                      2 1})
+
+(defn choose-move [state board active]
   (letfn [(human-moves [coll]
             (remove (fn [{:keys [index value]}]
                       (= "white" value))
                     coll))
           (corner? [idx]
             (corners idx))]
-    (if (= 0 (count invalid-moves))
-      [1 1]
-      (if (= 2 (count invalid-moves))
-        (let [hm (human-moves invalid-moves)
-              idx (:index (first hm))]
-          (if (corner? idx)
-            ({[0 0] [2 2]
-              [0 2] [2 0]
-              [2 2] [0 0]
-              [2 0] [0 2]} idx)
-            (rand-nth (vec corners))))
-        (:index (rand-nth valid-moves))))))
+    (let [[invalid valid] (invalid-valid board)
+          color (get-in @state [:player/by-index active :color])
+          opposite-color (get-in @state [:player/by-index (opposite-player active) :color])]
+      (if (empty? invalid)
+        [1 1]
+        (if (= 2 (count invalid))
+          (let [second-move (:index (first (human-moves invalid)))]
+            (if (corner? second-move)
+              (corner-endpoint second-move)
+              (rand-nth (vec corners))))
+          (:index (rand-nth valid))
+          #_(let [iwin (remove nil? (map won? (generate-moves board color)))
+                iblock (remove nil? (map won? (generate-moves board opposite-color)))
+                indexes (map :index valid)]
+            (if (empty? iwin)
+              (if (empty? iblock)
+                (:index (rand-nth valid))
+                (let  [[a b c _] (first iblock)]
+                  (first
+                   (filter #(or (= % a) (= % b) (= % c))
+                           indexes))))
+              (let  [[a b c _] (first iwin)]
+                (first
+                 (filter #(or (= % a) (= % b) (= % c))
+                         indexes))))))))))
 
 (defmethod mutate 'tic-tac-toe/computer-move
   [{:keys [state]} _ {:keys [idx]}]
   {:action
    (fn []
-     (let [board (vals (get @state :tile/by-index))
-           [invalid-moves valid-moves]
-           ((juxt remove filter)
-            (fn [{:keys [index value]}] (nil? value)) board)
-           random-move (next-move invalid-moves valid-moves)]
-       (swap! state update-in
-              [:tile/by-index random-move :value]
-              (fn []
-                (get-in @state
-                        [:player/by-index idx :piece])))
-       (let [board (vals (get @state :tile/by-index))
-             winner (won? board)]
-         (if-not winner
-           (next-player state)
-           (do
-             (swap! state update-in
-                    [:player/by-index idx :winner]
-                    (fn []
-                      winner))
+     (when-let [active (get-in @state [:active-player :idx])]
+       (when (= active idx)
+         (let [board (get-board state)
+               move (choose-move state board active)]
+           (next-move state active move)
+           (next-state state active)))))})
+
+(defmethod mutate 'tic-tac-toe/start
+  [{:keys [state]} _ {:keys [idx]}]
+  {:action (fn []
              (swap! state update-in
                     [:active-player :idx]
-                    (fn [] nil))
+                    (fn [] 1))
              (swap! state update-in
-                    [:player/by-index idx :active?]
-                    not))))))})
+                    [:player/by-index 1 :active?]
+                    (fn [] true))
+             (swap! state update-in
+                    [:player/by-index 2 :active?]
+                    (fn [] false)))})
+
+(defmethod mutate 'tic-tac-toe/restart
+  [{:keys [state]} _ _]
+  {:action (fn []
+             (mapv #(swap! state update-in
+                       [:player/by-index % :winner]
+                       (fn [] nil))
+                   [1 2])
+             (mapv #(swap! state update-in
+                           [:tile/by-index % :value]
+                           (fn [] nil))
+                   [[1 0] [0 1] [1 2] [2 1] [0 0] [2 0] [0 2] [2 2] [1 1]]))})
+
+(defmethod mutate 'tic-tac-toe/change-type
+  [{:keys [state]} _ {:keys [idx]}]
+  {:action (fn []
+             (swap! state update-in
+                    [:player/by-index idx :type]
+                    (fn [x]
+                      (if (= x :computer)
+                        :human
+                        :computer))))})
 
 (defui Player
   static om/Ident
@@ -164,13 +244,16 @@
   (render
    [this]
    (let [{:keys [idx name type active? winner piece] :as props} (om/props this)]
-     (when (and active? (= type :computer))
-       (om/transact! this `[(tic-tac-toe/computer-move ~props) :board]))
      (dom/div {:class (when winner "winner")}
-              (dom/h1 name)
-              (dom/p (clojure.core/name type))
-              (when winner
-                (dom/p "winner"))))))
+              (if winner
+                (dom/h1 name)
+                (dom/h2 name))
+              (b/button {:onClick
+                         (fn [e]
+                           (om/transact! this `[(tic-tac-toe/change-type ~props) :players]))}
+                        (clojure.core/name type))
+              (when (and active? (= type :computer))
+                (om/transact! this `[(tic-tac-toe/computer-move ~props) :players]))))))
 
 (defn square
   ([[x y]]
@@ -187,7 +270,7 @@
               :transform nil
               :x (str (* 33 x)"%")
               :y (str (* 33 y)"%")
-              :onClick (fn [e] (om/transact! this `[(tic-tac-toe/play ~props) :players :board]))})))
+              :onClick (fn [e] (om/transact! this `[(tic-tac-toe/play ~props) :players :active-player :board]))})))
 
 (defn piece [[x y] color]
   (dom/circle {:r "8%"
@@ -211,20 +294,21 @@
      (if-not value
        (square index this props)
        (dom/svg {}
-           (square index)
-           (piece index value))))))
+                (square index)
+                (piece index value))))))
 
 (def tile (om/factory Tile {:keyfn :index}))
 (def player (om/factory Player {:keyfn :idx}))
 
 (defn line [winner]
-  (let [[[x1 y1] [x2 y2] value] winner]
-    (dom/line {:x1 (str (+ 15 (* 33 x1)) "%")
-               :y1 (str (+ 15 (* 33 y1)) "%")
-               :x2 (str (+ 15 (* 33 x2)) "%")
-               :y2 (str (+ 15 (* 33 y2)) "%")
-               :stroke-width "10"
-               :stroke value})))
+  (when-not (keyword? winner)
+   (let [[[x1 y1] _ [x2 y2] value] winner]
+     (dom/line {:x1 (str (+ 15 (* 33 x1)) "%")
+                :y1 (str (+ 15 (* 33 y1)) "%")
+                :x2 (str (+ 15 (* 33 x2)) "%")
+                :y2 (str (+ 15 (* 33 y2)) "%")
+                :stroke-width "10"
+                :stroke value}))))
 
 (defui TicTacToe
   static om/IQuery
@@ -232,7 +316,7 @@
    [this]
    (let [player-query (om/get-query Player)
          tile-query (om/get-query Tile)]
-     `[[:active-player :idx] {:players ~player-query}{:board ~tile-query}]))
+     `[:active-player {:players ~player-query}{:board ~tile-query}]))
   Object
   (render
    [this]
@@ -244,27 +328,35 @@
                 width)
          [player1 player2] players
          w1 (:winner player1)
-         w2 (:winner player2)]
-     (println (str env))
+         w2 (:winner player2)
+         winner (or w1 w2)]
      (g/grid {}
-             (g/col {:xs 9 :md 8 :class "text-center"}
-              (dom/svg {:width size :height size}        
-                       (dom/rect {:width "1%" :height "98%" :fill "black" :transform nil :x "32%" :y "0%"})           
-                       (dom/rect {:width "1%" :height "98%" :fill "black" :transform nil :x "65%" :y "0%"})
-                       (dom/rect {:width "98%" :height "1%" :fill "black" :transform nil :x "0%" :y "32%"})
-                       (dom/rect {:width "98%" :height "1%" :fill "black" :transform nil :x "0%" :y "65%"})
-                       (map tile board)
-                       (when w1
-                         (line w1))
-                       (when w2
-                         (line w2))))
-             (g/col {:xs 9 :md 2 :class "text-center"}
-                    (g/row {} (player player1))
-                    (g/row {} (player player2)))))))
+             (g/col {:xs 16 :sm 12 :class "text-center"}
+                    (dom/svg {:width (* size 0.80) :height (* size 0.80)}
+                             (dom/rect {:width "1%" :height "98%" :fill "black" :transform nil :x "32%" :y "0%"})
+                             (dom/rect {:width "1%" :height "98%" :fill "black" :transform nil :x "65%" :y "0%"})
+                             (dom/rect {:width "98%" :height "1%" :fill "black" :transform nil :x "0%" :y "32%"})
+                             (dom/rect {:width "98%" :height "1%" :fill "black" :transform nil :x "0%" :y "65%"})
+                             (println (str board))
+                             (map tile board)
+                             (when winner
+                               (line winner)))
+                    (g/row {}
+                           (when (and (nil? (:idx active-player)) (nil? winner))
+                             (b/button {:onClick (fn [] (om/transact! this `[(tic-tac-toe/start ~env) :players]))}
+                                       "Start"))
+                           (when winner
+                             (b/button {:onClick
+                                        (fn [] (om/transact! this
+                                                  `[(tic-tac-toe/restart ~env) :players :board :active-player]))}
+                                       "New Game")))
+                    (g/row {}
+                           (g/col {:xs 6 :sm 5 :xs-offset 1 :class "text-right"} (player player1))
+                           (g/col {:xs 6 :sm 5 :class "text-left"} (player player2))))))))
 
-(def parser (om/parser {:read read :mutate mutate }))
+
 (def reconciler (om/reconciler {:state app-state
-                                :parser parser}))
+                                :parser (om/parser {:read read :mutate mutate })}))
 (defn init []
   (om/add-root! reconciler
                 TicTacToe (gdom/getElement "app")))
