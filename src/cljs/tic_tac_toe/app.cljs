@@ -152,38 +152,35 @@
 (def opposite-player {1 2
                       2 1})
 
+(defn get-valid [winner valid-moves]
+  (let [[a b c _] winner
+        valids (map :index valid-moves)]
+    (cond
+      ((complement empty?) (filter #(= % a)  valids)) a
+      ((complement empty?) (filter #(= % b)  valids)) b
+      ((complement empty?) (filter #(= % c)  valids)) c)))
+
 (defn choose-move [state board active]
-  (letfn [(human-moves [coll]
-            (remove (fn [{:keys [index value]}]
-                      (= "white" value))
-                    coll))
-          (corner? [idx]
-            (corners idx))]
-    (let [[invalid valid] (invalid-valid board)
-          color (get-in @state [:player/by-index active :color])
-          opposite-color (get-in @state [:player/by-index (opposite-player active) :color])]
-      (if (empty? invalid)
-        [1 1]
-        (if (= 2 (count invalid))
-          (let [second-move (:index (first (human-moves invalid)))]
-            (if (corner? second-move)
-              (corner-endpoint second-move)
-              (rand-nth (vec corners))))
-          (:index (rand-nth valid))
-          #_(let [iwin (remove nil? (map won? (generate-moves board color)))
-                iblock (remove nil? (map won? (generate-moves board opposite-color)))
-                indexes (map :index valid)]
-            (if (empty? iwin)
-              (if (empty? iblock)
-                (:index (rand-nth valid))
-                (let  [[a b c _] (first iblock)]
-                  (first
-                   (filter #(or (= % a) (= % b) (= % c))
-                           indexes))))
-              (let  [[a b c _] (first iwin)]
-                (first
-                 (filter #(or (= % a) (= % b) (= % c))
-                         indexes))))))))))
+  (let [[invalid valid] (invalid-valid board)
+        color (get-in @state [:player/by-index active :piece])
+        opposite-color (get-in @state [:player/by-index (opposite-player active) :piece])
+        iwin (first (remove false? (map won? (generate-moves board color))))
+        iblock (first (remove false? (map won? (generate-moves board opposite-color))))]
+    (letfn [(opposite-moves [coll]
+              (remove (fn [{:keys [index value]}]
+                        (= opposite-color value))
+                      coll))
+            (corner? [idx]
+              (corners idx))]
+      (cond
+        (empty? invalid) [1 1]
+        (= 2 (count invalid)) (let [second-move (:index (first (opposite-moves invalid)))]
+                                (if (corner? second-move)
+                                  (corner-endpoint second-move)
+                                  (rand-nth (vec corners))))
+        iwin (get-valid iwin valid)
+        iblock (get-valid iblock valid)
+        :else (:index (rand-nth valid))))))
 
 (defmethod mutate 'tic-tac-toe/computer-move
   [{:keys [state]} _ {:keys [idx]}]

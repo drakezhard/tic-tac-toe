@@ -56,14 +56,14 @@
         d (tile-map [0 1]) e (tile-map [1 1]) f (tile-map [2 1])
         g (tile-map [0 2]) h (tile-map [1 2]) i (tile-map [2 2])]
     (cond
-      (compare-3 a b c) [[0 0] [2 0] a]
-      (compare-3 d e f) [[0 1] [2 1] d]
-      (compare-3 g h i) [[0 2] [2 2] g]
-      (compare-3 a d g) [[0 0] [0 2] a]
-      (compare-3 b e h) [[1 0] [1 2] b]
-      (compare-3 c f i) [[2 0] [2 2] c]
-      (compare-3 a e i) [[0 0] [2 2] a]
-      (compare-3 g e c) [[0 2] [2 0] g]
+      (compare-3 a b c) [[0 0] [1 0] [2 0] a]
+      (compare-3 d e f) [[0 1] [1 1] [2 1] d]
+      (compare-3 g h i) [[0 2] [1 2] [2 2] g]
+      (compare-3 a d g) [[0 0] [0 1] [0 2] a]
+      (compare-3 b e h) [[1 0] [1 1] [1 2] b]
+      (compare-3 c f i) [[2 0] [2 1] [2 2] c]
+      (compare-3 a e i) [[0 0] [1 1] [2 2] a]
+      (compare-3 g e c) [[0 2] [1 1] [2 0] g]
       :else false)))
 
 (defn next-player [state active]
@@ -139,36 +139,26 @@
                       [2 2] [0 0]
                       [2 0] [0 2]})
 
-(defn next-move-v1 [invalid-moves valid-moves]
-  (letfn [(human-moves [coll]
-            (remove (fn [{:keys [index value]}]
-                      (= "white" value))
-                    coll))
-          (corner? [idx]
-            (corners idx))]
-    (if (= 0 (count invalid-moves))
-      [1 1]
-      (if (= 2 (count invalid-moves))
-        (let [hm (human-moves invalid-moves)
-              idx (:index (first hm))]
-          (if (corner? idx)
-            (corner-endpoint idx)
-            (rand-nth (vec corners))))
-        (:index (rand-nth valid-moves))))))
-
 (defn invalid-valid [board]
   ((juxt remove filter)
    (fn [{:keys [index value]}] (nil? value)) board))
 
 (defn generate-moves [board color]
-  (let [[invalid valid](invalid-valid board)]
-    (-> valid
+  (let [[_ valid](invalid-valid board)]
+    (->> valid
         (map (fn [m]
-               (conj (into invalid (remove #(= % m) valid))
-                     (update m :value (fn [] color))))))))
+               (conj (remove #(= % m) board) (update m :value (fn [] color))))))))
 
 (def opposite-player {1 2
                       2 1})
+
+(defn get-valid [winner valid-moves]
+  (let [[a b c _] winner
+        valids (map :index valid-moves)]
+    (cond
+      ((complement empty?) (filter #(= % a)  valids)) a
+      ((complement empty?) (filter #(= % b)  valids)) b
+      ((complement empty?) (filter #(= % c)  valids)) c)))
 
 (defn choose-move [state board active]
   (letfn [(human-moves [coll]
@@ -179,15 +169,20 @@
             (corners idx))]
     (let [[invalid valid] (invalid-valid board)
           color (get-in @state [:player/by-index active :color])
-          opposite-color (get-in @state [:player/by-index (opposite-player active) :color])]
-      (if (empty? invalid)
-        [1 1]
-        (if (= 2 (count invalid))
-          (let [second-move (:index (first (human-moves invalid)))]
-            (if (corner? second-move)
-              (corner-endpoint second-move)
-              (rand-nth (vec corners))))
-          (:index (rand-nth valid)))))))
+          opposite-color (get-in @state [:player/by-index (opposite-player active) :color])
+          iwin (first (remove false? (map won? (generate-moves board color))))
+          iblock (first (remove false? (map won? (generate-moves board opposite-color))))]
+      (cond
+        (empty? invalid) [1 1]
+        (= 2 (count invalid)) (let [second-move (:index (first (human-moves invalid)))]
+                                (if (corner? second-move)
+                                  (corner-endpoint second-move)
+                                  (rand-nth (vec corners))))
+        iwin (get-valid iwin valid)
+        iblock (get-valid iwin valid)
+        :else (:index (rand-nth valid))))))
+
+
 
 (defmethod mutate 'tic-tac-toe/computer-move
   [{:keys [state]} _ {:keys [idx]}]
@@ -196,8 +191,7 @@
      (when-let [active (get-in @state [:active-player :idx])]
        (when (= active idx)
          (let [board (get-board state)
-               move (apply next-move-v1 (invalid-valid board))
-               #_move2 #_(choose-move state board active)]
+               move (choose-move state board active)]
            (next-move state active move)
            (next-state state active)))))})
 
@@ -307,7 +301,7 @@
 
 (defn line [winner]
   (when-not (keyword? winner)
-   (let [[[x1 y1] [x2 y2] value] winner]
+   (let [[[x1 y1] _ [x2 y2] value] winner]
      (dom/line {:x1 (str (+ 15 (* 33 x1)) "%")
                 :y1 (str (+ 15 (* 33 y1)) "%")
                 :x2 (str (+ 15 (* 33 x2)) "%")
