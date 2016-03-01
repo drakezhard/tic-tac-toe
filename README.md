@@ -14,7 +14,7 @@ It was built using the following tools and libraries:
 
 #### Install Om Next (it's currently alpha software, so it's not available on clojars):
 
-1. Clone (Om)[https://github.com/omcljs/om] from GitHub.
+1. Clone [Om](https://github.com/omcljs/om) from GitHub.
 2. Enter the om directory.
 3. Issue the command `$ lein install`.
 
@@ -30,4 +30,10 @@ Execute the following command:
 2. Issue the command `$ boot dev`.
 3. Wait for it to compile.
 4. Open your browser and navigate to [http://localhost:3000](http://localhost:3000).
+
+## License
+
+Copyright © 2016 Ricardo J. Acuna
+
+Distributed under the [Eclipse Public License](https://www.eclipse.org/legal/epl-v10.html), the same as Clojure.
 
