@@ -6,9 +6,9 @@ It was built using the following tools and libraries:
 
 * Martin Klepsch's [Boot](https://github.com/boot-clj/boot) template [Tenzing](https://github.com/martinklepsch/tenzing).
 * Bozhidar Batsov's Emacs plugin for clojure development [Cider](https://github.com/clojure-emacs/cider).
-* (Om-Tools)[https://github.com/plumatic/om-tools]: A ClojureScript library of general-purpose tools for building applications with Om and Facebook's React.
-* (Om-Bootstrap)[https://github.com/racehub/om-bootstrap]: A ClojureScript library of Bootstrap 3 components built on top of Om.
-* (SVG)[https://en.wikipedia.org/wiki/Scalable_Vector_Graphics] and (CSS)[https://en.wikipedia.org/wiki/CSS]
+* [Om-Tools](https://github.com/plumatic/om-tools): A ClojureScript library of general-purpose tools for building applications with Om and Facebook's React.
+* [Om-Bootstrap](https://github.com/racehub/om-bootstrap): A ClojureScript library of Bootstrap 3 components built on top of Om.
+* [SVG](https://en.wikipedia.org/wiki/Scalable_Vector_Graphics) and [CSS](https://en.wikipedia.org/wiki/CSS)
 
 ## Build Instructions
 
