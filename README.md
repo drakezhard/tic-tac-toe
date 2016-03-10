@@ -16,7 +16,8 @@ It was built using the following tools and libraries:
 
 1. Clone [Om](https://github.com/omcljs/om) from GitHub.
 2. Enter the om directory.
-3. Issue the command `$ lein install`.
+3. [Install Leiningen(follow the instructions on this link).](http://leiningen.org/#install)
+4. Issue the command `$ lein install`.
 
 #### Install [Boot](https://github.com/boot-clj/boot):
 
