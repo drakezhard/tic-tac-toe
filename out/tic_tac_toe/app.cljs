@@ -161,28 +161,26 @@
       ((complement empty?) (filter #(= % c)  valids)) c)))
 
 (defn choose-move [state board active]
-  (letfn [(human-moves [coll]
-            (remove (fn [{:keys [index value]}]
-                      (= "white" value))
-                    coll))
-          (corner? [idx]
-            (corners idx))]
-    (let [[invalid valid] (invalid-valid board)
-          color (get-in @state [:player/by-index active :color])
-          opposite-color (get-in @state [:player/by-index (opposite-player active) :color])
-          iwin (first (remove false? (map won? (generate-moves board color))))
-          iblock (first (remove false? (map won? (generate-moves board opposite-color))))]
+  (let [[invalid valid] (invalid-valid board)
+        color (get-in @state [:player/by-index active :piece])
+        opposite-color (get-in @state [:player/by-index (opposite-player active) :piece])
+        iwin (first (remove false? (map won? (generate-moves board color))))
+        iblock (first (remove false? (map won? (generate-moves board opposite-color))))]
+    (letfn [(opposite-moves [coll]
+              (remove (fn [{:keys [index value]}]
+                        (= opposite-color value))
+                      coll))
+            (corner? [idx]
+              (corners idx))]
       (cond
         (empty? invalid) [1 1]
-        (= 2 (count invalid)) (let [second-move (:index (first (human-moves invalid)))]
+        (= 2 (count invalid)) (let [second-move (:index (first (opposite-moves invalid)))]
                                 (if (corner? second-move)
                                   (corner-endpoint second-move)
                                   (rand-nth (vec corners))))
         iwin (get-valid iwin valid)
-        iblock (get-valid iwin valid)
+        iblock (get-valid iblock valid)
         :else (:index (rand-nth valid))))))
-
-
 
 (defmethod mutate 'tic-tac-toe/computer-move
   [{:keys [state]} _ {:keys [idx]}]
@@ -230,6 +228,16 @@
                         :human
                         :computer))))})
 
+(defn player-view [winner name type this props]
+  (dom/div {:class (when winner "winner")}
+           (if winner
+             (dom/h1 name)
+             (dom/h2 name))
+           (b/button {:onClick
+                      (fn [e]
+                        (om/transact! this `[(tic-tac-toe/change-type ~props) :players]))}
+                     (clojure.core/name type))))
+
 (defui Player
   static om/Ident
   (ident
@@ -243,16 +251,10 @@
   (render
    [this]
    (let [{:keys [idx name type active? winner piece] :as props} (om/props this)]
-     (dom/div {:class (when winner "winner")}
-              (if winner
-                (dom/h1 name)
-                (dom/h2 name))
-              (b/button {:onClick
-                         (fn [e]
-                           (om/transact! this `[(tic-tac-toe/change-type ~props) :players]))}
-                        (clojure.core/name type))
-              (when (and active? (= type :computer))
-                (om/transact! this `[(tic-tac-toe/computer-move ~props) :players]))))))
+     (if (and active? (= type :computer))
+       (do (om/transact! this `[(tic-tac-toe/computer-move ~props) :active-player :players :board])
+           (player-view winner name type this props))
+       (player-view winner name type this props)))))
 
 (defn square
   ([[x y]]
@@ -336,7 +338,6 @@
                              (dom/rect {:width "1%" :height "98%" :fill "black" :transform nil :x "65%" :y "0%"})
                              (dom/rect {:width "98%" :height "1%" :fill "black" :transform nil :x "0%" :y "32%"})
                              (dom/rect {:width "98%" :height "1%" :fill "black" :transform nil :x "0%" :y "65%"})
-                             (println (str board))
                              (map tile board)
                              (when winner
                                (line winner)))
