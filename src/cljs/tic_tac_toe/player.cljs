@@ -1,4 +1,7 @@
-(ns tic-tac-toe.player)
+(ns tic-tac-toe.player
+  (:require [om.next :as om :refer-macros [defui]]
+            [om-tools.dom :as dom :include-macros true]
+            [om-bootstrap.button :as b]))
 
 (defn player-view [winner name type this props]
   (dom/div {:class (when winner "winner")}
