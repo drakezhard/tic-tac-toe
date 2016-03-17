@@ -15,13 +15,13 @@
 (def app-state
   {:active-player {:idx nil}
    :players [{:idx 1
-              :name "Player 1"
+              :name "1st Player"
               :type :human
               :active? nil
               :winner nil
               :piece "black"}
              {:idx 2
-              :name "Player 2"
+              :name "2nd Player"
               :type :computer
               :active? nil
               :winner nil
@@ -35,22 +35,4 @@
 
 (defn init []
   (om/add-root! reconciler
-                TicTacToe (gdom/getElement "app"))
-  (defui Player
-    static om/Ident
-    (ident
-     [this {:keys [idx]}]
-     [:player/by-index idx])
-    static om/IQuery
-    (query
-     [this]
-     '[:idx :name :type :active? :winner :piece])
-    Object
-    (render
-     [this]
-     (let [{:keys [idx name type active? winner piece] :as props} (om/props this)]
-       (if (and active? (= type :computer))
-         (do (om/transact! this `[(tic-tac-toe/computer-move ~props) :active-player :players :board])
-             (player-view winner name type this props))
-         (player-view winner name type this props)))))
-  (def player (om/factory Player {:keyfn :idx})))
+                TicTacToe (gdom/getElement "app")))

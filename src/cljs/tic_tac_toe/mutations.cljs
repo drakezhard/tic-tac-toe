@@ -14,17 +14,18 @@
 
 (defmethod mutate 'tic-tac-toe/computer-move
   [{:keys [state]} _ {:keys [idx]}]
-  {:action
+  {:value {:keys [:idx :name :type :active? :winner :piece]}
+   :action
    (fn []
      (when-let [active (get-in @state [:active-player :idx])]
        (when (= active idx)
-         (let [board (u/get-board state)
-               move (u/choose-move state board active)]
-           (u/next-move state active move)
-           (u/next-state state active)))))})
+        (let [board (u/get-board state)
+              move (u/choose-move state board idx)]
+          (u/next-move state idx move)
+          (u/next-state state idx)))))})
 
 (defmethod mutate 'tic-tac-toe/start
-  [{:keys [state]} _ {:keys [idx]}]
+  [{:keys [state]} _ _]
   {:action (fn []
              (swap! state update-in
                     [:active-player :idx]
