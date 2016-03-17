@@ -1,6 +1,7 @@
 (ns tic-tac-toe.tile
   (:require [om.next :as om :refer-macros [defui]]
-            [om-tools.dom :as dom :include-macros true]))
+            [om-tools.dom :as dom :include-macros true]
+            [tic-tac-toe.colors :as color]))
 
 (defn click-handler [this props]
   (when (and this props)
@@ -12,7 +13,7 @@
   ([[x y] this props]
    (dom/rect {:width "32%"
               :height "32%"
-              :fill "red"
+              :fill color/tiles
               :transform nil
               :x (str (* 33 x)"%")
               :y (str (* 33 y)"%")

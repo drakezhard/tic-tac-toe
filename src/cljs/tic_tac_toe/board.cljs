@@ -3,7 +3,8 @@
             [om-tools.dom :as dom :include-macros true]
             [om-bootstrap.button :as b]
             [om-bootstrap.grid :as g]
-            [tic-tac-toe.player :refer [player-view Player player]]
+            [tic-tac-toe.colors :as color]
+            [tic-tac-toe.player :refer [Player player]]
             [tic-tac-toe.tile :refer [Tile tile]]))
 
 (defn start-button [this env size]
@@ -11,18 +12,17 @@
             :onClick (fn [] (om/transact! this `[(tic-tac-toe/start ~env) :players]))}
            (dom/circle {:cx "50%" :cy "50%"
                         :r (/ size 2)
-                        :fill "red"})
+                        :fill color/tiles})
            (dom/text {:x "10%" :y "50%"
                       :font-size (/ size 9)
-                      :fill "black"
-                      :stroke "yellow"} "Click me to start!")))
+                      :fill color/base} "Click me to start!")))
 
 (defn frame []
   (dom/svg
-    (dom/rect {:width "1%" :height "98%" :fill "black" :transform nil :x "32%" :y "0%"})
-    (dom/rect {:width "1%" :height "98%" :fill "black" :transform nil :x "65%" :y "0%"})
-    (dom/rect {:width "98%" :height "1%" :fill "black" :transform nil :x "0%" :y "32%"})
-    (dom/rect {:width "98%" :height "1%" :fill "black" :transform nil :x "0%" :y "65%"})))
+    (dom/rect {:width "1%" :height "98%" :fill color/base :transform nil :x "32%" :y "0%"})
+    (dom/rect {:width "1%" :height "98%" :fill color/base :transform nil :x "65%" :y "0%"})
+    (dom/rect {:width "98%" :height "1%" :fill color/base :transform nil :x "0%" :y "32%"})
+    (dom/rect {:width "98%" :height "1%" :fill color/base :transform nil :x "0%" :y "65%"})))
 
 (defn line [winner]
   (when-not (keyword? winner)
@@ -44,7 +44,9 @@
 
 
 (defn reset [this env label]
-  (b/button {:onClick
+  (b/button {:class "btn btn-success"
+             :style {:color color/base}
+             :onClick
              (fn [] (om/transact! this
                                   `[(tic-tac-toe/restart ~env) :players :board :active-player]))}
             label))

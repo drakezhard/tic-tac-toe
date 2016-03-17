@@ -1,20 +1,23 @@
 (ns tic-tac-toe.player
   (:require [om.next :as om :refer-macros [defui]]
             [om-tools.dom :as dom :include-macros true]
-            [om-bootstrap.button :as b]))
+            [om-bootstrap.button :as b]
+            [tic-tac-toe.colors :as color]))
 
-(def opposite-color {"black" "white"
-                     "white" "black"})
+(def opposite-color {color/player1 color/player2
+                     color/player2 color/player1})
 
 (defn player-view [this props]
   (let [{:keys [name type winner piece]} props]
-    (dom/div {:style {:background-color piece
-                      :color (if-not winner
-                               (opposite-color piece)
-                               "orangered")
+    (dom/div {:style {:color color/base
+                      :background-color (if-not winner
+                                          piece
+                                          color/winner)
                       :border-radius "25px"}}
              (dom/h1 name)
-             (b/button {:style {:margin-bottom "10px"}
+             (b/button {:class "btn btn-success"
+                        :style {:margin-bottom "10px"
+                                :color color/base}
                         :onClick
                         (fn [e]
                           (om/transact! this `[(tic-tac-toe/change-type ~props) :players]))}
